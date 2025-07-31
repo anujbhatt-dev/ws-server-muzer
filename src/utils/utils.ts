@@ -20,9 +20,27 @@ export const streamRoom: {
     [creatorUsername: string]: {
       [userId: string]: {
         socketId: string;
-        fullName: string;
-        imageUrl: string;
+        fullName?: string;
+        imageUrl?: string;
+        joineeUsername?:string
       };
     };
 } = {};
+
+export interface StreamsSchema {
+  id: string;
+  type: 'Youtube' | 'Spotify'; // assuming you only use these two as per your enum
+  active: boolean;
+  extractedId: string;
+  url: string;
+  bigImage: string;
+  smallImg: string;
+  title: string;
+  creatorId: string;
+  createdAt: Date;
+  played: boolean;
+  playedTs: Date | null;
+}
   
+
+export const streams:StreamsSchema[] = []
