@@ -1,8 +1,36 @@
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { streamRoom, users, streams } from "./utils/utils";
+import { 
+  streamRoom, 
+  users, 
+  streams, 
+  upvotes
+ } from "./utils/utils";
 import { prismaClient } from "./utils/db";
 
+export type StreamType = 'Youtube' | 'Spotify' | 'Twitch'; // Extend based on your actual enum
+
+export interface UserStreamPayload {
+  userId: string;
+  streamId: string;
+  stream: {
+    id: string;
+    type: StreamType;
+    active: boolean;
+    extractedId: string;
+    url: string;
+    bigImage: string;
+    smallImg: string;
+    title: string;
+    creatorId: string;
+    createdAt: Date; // Because Prisma returns a Date object
+    played: boolean;
+    playedTs: Date | null; // Also Date, or null
+  };
+}
+
+ 
+export let activeStream:UserStreamPayload | null = null;
 
 const httpServer = createServer();
 
@@ -12,6 +40,9 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   },
 });
+
+
+
 
 io.on("connection", async (socket) => {
   const creatorUsername = socket.handshake.query.creatorUsername as string;
@@ -89,7 +120,7 @@ io.on("connection", async (socket) => {
         userId: user.id,
       },
       include: {
-        Stream: true, // ✅ Correct field
+        stream: true, // ✅ Correct field
       },
     }),
   ]);
@@ -106,6 +137,18 @@ io.on("connection", async (socket) => {
   console.log(formattedStreams,activeStreamFetch);
   streams.length = 0;
   streams.push(...formattedStreams);
+  if (
+    activeStreamFetch &&
+    activeStreamFetch.userId &&
+    activeStreamFetch.streamId &&
+    activeStreamFetch.stream
+  ) {
+    activeStream = {
+      userId: activeStreamFetch.userId,
+      streamId: activeStreamFetch.streamId,
+      stream: activeStreamFetch.stream,
+    };
+  }
   
 
   const getJoineeUsernames  = Object.values(streamRoom[creatorUsername]).map(user => user.joineeUsername);
@@ -117,14 +160,78 @@ io.on("connection", async (socket) => {
     onlineusers: getJoineeUsernames,
     users: Object.fromEntries(users),
     onlineUserFullDetails:streamRoom[creatorUsername],
-    streams
+    streams,
+    activeStream:activeStreamFetch
   });
 
   socket.on("add_stream",(stream)=>{
-    console.log("add_stream", stream);    
+    console.log("add_stream", stream);
+    stream.upvotes= 0
+    stream.hasUpvoted = false;    
     streams.push(stream);
     io.to(creatorUsername).emit("added_stream",streams)
   })
+
+  socket.on("play_next",()=>{
+    const nextStream = streams.shift();
+    if(nextStream){
+      activeStream = {
+        userId: nextStream.creatorId,
+        streamId: nextStream.id,
+        stream: nextStream,
+      };
+    }
+    io.to(creatorUsername).emit("get_active_stream",activeStream)
+    io.to(creatorUsername).emit("get_updated_streams",streams)
+  })
+
+
+  socket.on("upvote_stream", ({ streamId, userId }: { streamId: string, userId: string }) => {
+    upvotes.push({ streamId, userId });
+  
+    const selectedStream = streams.find(stream => stream.id === streamId);
+    if (selectedStream) {
+      selectedStream.upvotes += 1;
+      selectedStream.hasUpvoted = true;
+    }
+  
+    // 🔁 Re-sort the array after upvote
+    streams.sort((a, b) => {
+      if (b.upvotes === a.upvotes) {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return b.upvotes - a.upvotes;
+    });
+  
+    io.to(creatorUsername).emit("get_updated_streams", streams);
+  });
+
+  socket.on("downvote_stream", ({ streamId, userId }: { streamId: string, userId: string }) => {
+    const upvoteIndex = upvotes.findIndex(
+      (upvote) => upvote.streamId === streamId && upvote.userId === userId
+    );
+    if (upvoteIndex !== -1) {
+      upvotes.splice(upvoteIndex, 1);
+    }
+  
+    const selectedStream = streams.find(stream => stream.id === streamId);
+    if (selectedStream) {
+      selectedStream.upvotes = Math.max(0, selectedStream.upvotes - 1);
+      selectedStream.hasUpvoted = false;
+    }
+  
+    // 🔁 Re-sort the array after downvote
+    streams.sort((a, b) => {
+      if (b.upvotes === a.upvotes) {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return b.upvotes - a.upvotes;
+    });
+  
+    io.to(creatorUsername).emit("get_updated_streams", streams);
+  });
+  
+
 
   // Disconnect handler
   socket.on("disconnect", () => {
@@ -147,7 +254,10 @@ io.on("connection", async (socket) => {
       onlineusers: updatedUsernames,
       users: Object.fromEntries(users),
       onlineUserFullDetails: updatedRoom,
+      streams,
+      activeStream:activeStreamFetch
     });
+
   });
   
 });

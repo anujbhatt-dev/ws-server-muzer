@@ -40,7 +40,16 @@ export interface StreamsSchema {
   createdAt: Date;
   played: boolean;
   playedTs: Date | null;
+  upvotes:number,
+  hasUpvoted:boolean
 }
-  
+
+export interface UpvotesSchema {
+  id?: string;
+  userId: string;
+  streamId: string;
+}
+
+export const upvotes:UpvotesSchema[] = []
 
 export const streams:StreamsSchema[] = []

@@ -11,7 +11,7 @@ datasource db {
 model CurrentStream {
   userId   String  @id
   streamId String? @unique
-  Stream   Stream? @relation(fields: [streamId], references: [id])
+  stream   Stream? @relation(fields: [streamId], references: [id])
 }
 
 model Stream {
