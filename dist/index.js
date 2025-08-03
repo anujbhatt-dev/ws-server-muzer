@@ -6,6 +6,7 @@ const socket_io_1 = require("socket.io");
 const utils_1 = require("./utils/utils");
 const db_1 = require("./utils/db");
 exports.activeStream = null;
+const PORT = process.env.PORT || 4000;
 const httpServer = (0, http_1.createServer)();
 const io = new socket_io_1.Server(httpServer, {
     cors: {
@@ -188,6 +189,6 @@ io.on("connection", async (socket) => {
         });
     });
 });
-httpServer.listen(4000, () => {
-    console.log("🚀 WebSocket server running on http://localhost:4000");
+httpServer.listen(PORT, () => {
+    console.log(`🚀 WebSocket server running on http://localhost:${PORT}`);
 });
