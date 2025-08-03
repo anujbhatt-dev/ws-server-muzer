@@ -32,6 +32,8 @@ export interface UserStreamPayload {
  
 export let activeStream:UserStreamPayload | null = null;
 
+const PORT = process.env.PORT || 4000;
+
 const httpServer = createServer();
 
 const io = new Server(httpServer, {
@@ -262,6 +264,6 @@ io.on("connection", async (socket) => {
   
 });
 
-httpServer.listen(4000, () => {
-  console.log("🚀 WebSocket server running on http://localhost:4000");
+httpServer.listen(PORT, () => {
+  console.log(`🚀 WebSocket server running on http://localhost:${PORT}`);
 });
