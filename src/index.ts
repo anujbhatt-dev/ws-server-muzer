@@ -232,6 +232,13 @@ io.on("connection", async (socket) => {
   
     io.to(creatorUsername).emit("get_updated_streams", streams);
   });
+
+
+  socket.on("get_all_streams",()=>{
+    console.log("get_all_streams");
+    
+    io.to(socket.id).emit("all_streams",streams)
+  })
   
 
 
