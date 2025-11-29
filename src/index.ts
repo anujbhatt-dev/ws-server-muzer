@@ -44,11 +44,21 @@ const io = new Server(httpServer, {
 });
 
 
+async function testDb() {
+  try {
+    await prismaClient.$queryRaw`SELECT 1`;
+    console.log("✅ DB connection OK");
+  } catch (err) {
+    console.error("❌ DB connection FAILED", err);
+  }
+}
+
+testDb();
+
 
 
 io.on("connection", async (socket) => {
   const creatorUsername = socket.handshake.query.creatorUsername as string;
-  const creatorId = socket.handshake.query.creatorId as string;
   const joineeId = socket.handshake.query.joineeId as string;
   const socketId = socket.id;
   const fullName = socket.handshake.query.fullName as string;
